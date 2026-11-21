@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: san-hydro-energy-hrm
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: TZ_OFFSET_HOURS
+        value: 5
+      - key: ADMIN_PASSWORD
+        generateValue: true
