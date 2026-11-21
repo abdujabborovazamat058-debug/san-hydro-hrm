@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b2b35">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>SAN HYDRO ENERGY Ariza</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="login" style="max-width:520px;margin-top:4vh;padding-bottom:40px">
+  <div class="row" style="justify-content:space-between"><h1 class="brand">SAN HYDRO ENERGY</h1><div id="seg"></div></div>
+  <form class="card form" id="af">
+    <h2 class="full" id="h"></h2>
+    <label class="f full"><span id="l-name"></span><input id="a-name" required autocomplete="name"></label>
+    <label class="f"><span id="l-phone"></span><input id="a-phone" type="tel" required autocomplete="tel"></label>
+    <label class="f"><span id="l-role"></span><input id="a-role"></label>
+    <label class="f full"><span id="l-sal"></span><input id="a-sal" type="number" min="0"></label>
+    <label class="f full"><span id="l-addr"></span><input id="a-addr" autocomplete="street-address"></label>
+    <div class="full"><button type="button" class="btn" id="b-gps"></button> <span class="note" id="gps-s"></span></div>
+    <div class="full" id="camwrap"><button type="button" class="btn" id="b-face"></button> <span class="note" id="face-s"></span><video id="vid" playsinline muted hidden style="margin-top:10px"></video><button type="button" class="btn p" id="b-snap" hidden style="margin-top:8px"></button></div>
+    <p class="note full" id="n1"></p>
+    <label class="full" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="a-consent"><span id="l-consent"></span></label>
+    <div class="msg full" id="res" hidden></div>
+    <button class="btn p big full" type="submit" id="b-send"></button>
+  </form>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js" defer></script>
+<script src="/i18n.js"></script>
+<script src="/face.js"></script>
+<script>
+(function(){
+'use strict';
+function $(i){return document.getElementById(i);}
+var gpsData=null,faceData=null;
+function txt(){
+  $('seg').innerHTML='<div class="seg"><button type="button" data-lang="uz" aria-pressed="'+(getLang()==='uz')+'">UZ</button><button type="button" data-lang="ru" aria-pressed="'+(getLang()==='ru')+'">RU</button></div>';
+  $('h').textContent=T('ap_title');$('l-name').textContent=T('ap_name');$('l-phone').textContent=T('ap_phone');$('l-role').textContent=T('ap_role');$('l-sal').textContent=T('ap_sal');$('l-addr').textContent=T('ap_addr');
+  $('b-gps').textContent=T('ap_gps');$('b-face').textContent=T('ap_face');$('b-snap').textContent=T('f_take');$('n1').textContent=T('ap_note');$('l-consent').textContent=T('ap_consent');$('b-send').textContent=T('ap_send');
+  if(gpsData)$('gps-s').textContent=T('ap_gps_ok',gpsData.lat.toFixed(5),gpsData.lng.toFixed(5));
+  if(faceData)$('face-s').textContent=T('ap_face_ok');
+}
+function msg(c,t){var r=$('res');r.hidden=false;r.className='msg full '+c;r.textContent=t;}
+document.addEventListener('click',function(ev){var l=ev.target.dataset&&ev.target.dataset.lang;if(l){setLang(l);txt();}});
+$('b-gps').onclick=function(){Face.gps().then(function(g){gpsData=g;txt();}).catch(function(){msg('no',T('p_gpsfail'));});};
+$('b-face').onclick=async function(){
+  var v=$('vid');$('res').hidden=true;
+  try{await Face.loadModels();}catch(e){return msg('no',T('p_modelfail'));}
+  try{await Face.startCamera(v);}catch(e){return msg('no',T('p_camfail'));}
+  v.hidden=false;$('b-snap').hidden=false;
+};
+$('b-snap').onclick=async function(){
+  var v=$('vid');$('b-snap').disabled=true;
+  try{faceData=await Face.capture(v);Face.stopCamera(v);v.hidden=true;$('b-snap').hidden=true;txt();}
+  catch(e){msg('no',errText('no_face_detected'));}
+  $('b-snap').disabled=false;
+};
+$('af').addEventListener('submit',function(ev){
+  ev.preventDefault();
+  if(!$('a-consent').checked)return msg('w',T('ap_need_consent'));
+  var b={name:$('a-name').value,phone:$('a-phone').value,role:$('a-role').value,salary:$('a-sal').value,address:$('a-addr').value};
+  if(gpsData){b.lat=gpsData.lat;b.lng=gpsData.lng;}
+  if(faceData){b.photo=faceData.photo;b.descriptor=faceData.descriptor;}
+  $('b-send').disabled=true;
+  fetch('/api/apply',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){return r.json().catch(function(){return {};}).then(function(j){
+    if(r.ok){msg('ok',T('ap_done'));$('af').reset();gpsData=null;faceData=null;$('gps-s').textContent='';$('face-s').textContent='';}
+    else{msg('no',errText(j.error));$('b-send').disabled=false;}
+  });},function(){msg('no',errText('network'));$('b-send').disabled=false;});
+});
+txt();
+})();
+</script>
+</body>
+</html>
